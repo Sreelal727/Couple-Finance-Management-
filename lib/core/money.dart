@@ -5,16 +5,8 @@ import 'package:intl/intl.dart';
 class Money {
   Money._();
 
-  static final NumberFormat _inr = NumberFormat.currency(
-    locale: 'en_IN',
-    symbol: '₹',
-    decimalDigits: 0,
-  );
-  static final NumberFormat _inrPaise = NumberFormat.currency(
-    locale: 'en_IN',
-    symbol: '₹',
-    decimalDigits: 2,
-  );
+  static final NumberFormat _inr = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+  static final NumberFormat _inrPaise = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 2);
 
   /// Formats paise as ₹1,23,456 (no paise if the amount is whole rupees).
   static String format(int paise, {bool showPaise = false}) {

@@ -10,6 +10,5 @@ String newId() => _uuid.v4();
 String shortCode(int length) {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   final rng = Random.secure();
-  return List.generate(length, (_) => alphabet[rng.nextInt(alphabet.length)])
-      .join();
+  return List.generate(length, (_) => alphabet[rng.nextInt(alphabet.length)]).join();
 }

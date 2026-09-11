@@ -20,8 +20,7 @@ class ParsedSms {
   });
 
   @override
-  String toString() =>
-      'ParsedSms($amountPaise ${direction.name} merchant=$merchant acct=$accountTail ref=$reference)';
+  String toString() => 'ParsedSms($amountPaise ${direction.name} merchant=$merchant acct=$accountTail ref=$reference)';
 }
 
 /// Pure-Dart parser for Indian bank transaction SMS (SBI, HDFC, ICICI, Axis,
@@ -87,11 +86,15 @@ class SmsParser {
     // "; RAJESH KUMAR credited." (ICICI)
     RegExp(r';\s*([^;.\n]+?)\s+credited', caseSensitive: false),
     // "from SALARY", "from RAJESH" (credits)
-    RegExp(r"\bfrom\s+(?!your\b|a/?c\b|account\b|acct\b|hdfc\b|icici\b|sbi\b|axis\b|kotak\b|federal\b|paytm\b)([A-Za-z][A-Za-z0-9 &'.\-]{2,40}?)(?:\s+on\b|\s+Ref\b|\s+UPI\b|\s+\(|\.|,|;|$)",
-        caseSensitive: false),
+    RegExp(
+      r"\bfrom\s+(?!your\b|a/?c\b|account\b|acct\b|hdfc\b|icici\b|sbi\b|axis\b|kotak\b|federal\b|paytm\b)([A-Za-z][A-Za-z0-9 &'.\-]{2,40}?)(?:\s+on\b|\s+Ref\b|\s+UPI\b|\s+\(|\.|,|;|$)",
+      caseSensitive: false,
+    ),
     // "To ZOMATO On", "at AMAZON on", "to q2@ybl on", "towards Lulu on"
-    RegExp(r"\b(?:to|at|towards)\s+(?!VPA\b|your\b|a/?c\b|account\b)([A-Za-z0-9][A-Za-z0-9 &'.@\-]{1,40}?)(?:\s+on\b|\s+Ref\b|\s+UPI\b|\s+via\b|\s+from\b|\s+\(|\.\s|\.$|,|;|$)",
-        caseSensitive: false),
+    RegExp(
+      r"\b(?:to|at|towards)\s+(?!VPA\b|your\b|a/?c\b|account\b)([A-Za-z0-9][A-Za-z0-9 &'.@\-]{1,40}?)(?:\s+on\b|\s+Ref\b|\s+UPI\b|\s+via\b|\s+from\b|\s+\(|\.\s|\.$|,|;|$)",
+      caseSensitive: false,
+    ),
     // "Info: UPI/DR/..."; "Info: ZOMATO"
     RegExp(r'\bInfo:\s*(?:UPI/(?:DR|CR)/[0-9]+/)?([^/.;\n]+)', caseSensitive: false),
   ];
@@ -176,11 +179,7 @@ class SmsParser {
     final upper = RegExp(r'[A-Z]').allMatches(s).length;
     final lower = RegExp(r'[a-z]').allMatches(s).length;
     if (upper > lower && s.length > 3) {
-      s = s
-          .toLowerCase()
-          .split(' ')
-          .map((w) => w.isEmpty ? w : w[0].toUpperCase() + w.substring(1))
-          .join(' ');
+      s = s.toLowerCase().split(' ').map((w) => w.isEmpty ? w : w[0].toUpperCase() + w.substring(1)).join(' ');
     }
     return s;
   }

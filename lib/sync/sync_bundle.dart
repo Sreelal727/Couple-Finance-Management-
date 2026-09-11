@@ -53,8 +53,7 @@ class SyncBundle {
 
   Future<BundleImportResult> import(Uint8List bytes) async {
     final magic = utf8.encode(SyncProtocol.bundleMagic);
-    if (bytes.length < magic.length ||
-        !_startsWith(bytes, magic)) {
+    if (bytes.length < magic.length || !_startsWith(bytes, magic)) {
       throw const SyncException('Not a Duo Finance sync file');
     }
     final startedAt = Dates.nowMs();
@@ -65,10 +64,9 @@ class SyncBundle {
       throw const SyncException('Could not open the file. Was it made by your paired phone?');
     }
     final from = DeviceInfo.fromJson(j['from'] as Map<String, dynamic>);
-    final rows = ((j['rows'] as Map?) ?? const {}).map((t, l) => MapEntry(
-          t as String,
-          (l as List).map((r) => Map<String, Object?>.from(r as Map)).toList(),
-        ));
+    final rows = ((j['rows'] as Map?) ?? const {}).map(
+      (t, l) => MapEntry(t as String, (l as List).map((r) => Map<String, Object?>.from(r as Map)).toList()),
+    );
     final applied = await repo.applyIncoming(rows);
     var stored = 0;
     for (final a in ((j['attachments'] as List?) ?? const [])) {
@@ -78,8 +76,7 @@ class SyncBundle {
       if (await attachments.hasBytes(att)) continue;
       if (await attachments.storeReceived(att, base64Decode(m['data'] as String))) stored++;
     }
-    final theirVector = ((j['vector'] as Map?) ?? const {})
-        .map((k, v) => MapEntry(k as String, (v as num).toInt()));
+    final theirVector = ((j['vector'] as Map?) ?? const {}).map((k, v) => MapEntry(k as String, (v as num).toInt()));
     // They know their own state; merge with what we already believed.
     final known = await repo.peerVector(from.deviceId);
     for (final e in theirVector.entries) {
@@ -87,30 +84,34 @@ class SyncBundle {
     }
     await repo.savePeerVector(from.deviceId, known);
     final existing = await repo.peerByDevice(from.deviceId);
-    await repo.upsertPeer((existing ??
-            Peer(
-              deviceId: from.deviceId,
-              memberId: from.memberId,
-              name: from.name,
-              lastAddress: null,
-              lastSeenAt: null,
-              lastSyncAt: null,
-              pairedAt: Dates.nowMs(),
-            ))
-        .copyWith(name: from.name, lastSyncAt: Dates.nowMs()));
-    await repo.addSyncLog(SyncLogEntry(
-      id: newId(),
-      peerName: from.name,
-      startedAt: startedAt,
-      finishedAt: Dates.nowMs(),
-      method: SyncMethod.bundleIn,
-      outcome: SyncOutcome.ok,
-      sent: 0,
-      received: applied,
-      attachmentsSent: 0,
-      attachmentsReceived: stored,
-      detail: 'Imported sync file',
-    ));
+    await repo.upsertPeer(
+      (existing ??
+              Peer(
+                deviceId: from.deviceId,
+                memberId: from.memberId,
+                name: from.name,
+                lastAddress: null,
+                lastSeenAt: null,
+                lastSyncAt: null,
+                pairedAt: Dates.nowMs(),
+              ))
+          .copyWith(name: from.name, lastSyncAt: Dates.nowMs()),
+    );
+    await repo.addSyncLog(
+      SyncLogEntry(
+        id: newId(),
+        peerName: from.name,
+        startedAt: startedAt,
+        finishedAt: Dates.nowMs(),
+        method: SyncMethod.bundleIn,
+        outcome: SyncOutcome.ok,
+        sent: 0,
+        received: applied,
+        attachmentsSent: 0,
+        attachmentsReceived: stored,
+        detail: 'Imported sync file',
+      ),
+    );
     if (stored > 0) repo.bump();
     return BundleImportResult(from: from, applied: applied, attachments: stored);
   }

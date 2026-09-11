@@ -1,5 +1,4 @@
 import 'package:another_telephony/telephony.dart' hide SmsStatus;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -26,8 +25,13 @@ Future<void> smsBackgroundHandler(SmsMessage message) async {
       final prefs = await SharedPreferences.getInstance();
       if (prefs.getBool(SmsService.enabledKey) ?? false) {
         await Notifications.init(onBackgroundTap: notificationBackgroundTap);
-        await SmsService.ingest(repo, message.address ?? '', message.body ?? '',
-            receivedAt: message.date ?? Dates.nowMs(), notify: true);
+        await SmsService.ingest(
+          repo,
+          message.address ?? '',
+          message.body ?? '',
+          receivedAt: message.date ?? Dates.nowMs(),
+          notify: true,
+        );
       }
     }
     await db.close();
@@ -96,8 +100,8 @@ class SmsService extends ChangeNotifier {
     if (_listening || !enabled) return;
     _listening = true;
     _telephony.listenIncomingSms(
-      onNewMessage: (msg) => ingest(repo, msg.address ?? '', msg.body ?? '',
-          receivedAt: msg.date ?? Dates.nowMs(), notify: true),
+      onNewMessage: (msg) =>
+          ingest(repo, msg.address ?? '', msg.body ?? '', receivedAt: msg.date ?? Dates.nowMs(), notify: true),
       onBackgroundMessage: smsBackgroundHandler,
       listenInBackground: true,
     );
@@ -120,8 +124,7 @@ class SmsService extends ChangeNotifier {
     }
     var added = 0;
     for (final m in messages) {
-      final inserted = await ingest(repo, m.address ?? '', m.body ?? '',
-          receivedAt: m.date ?? since, notify: false);
+      final inserted = await ingest(repo, m.address ?? '', m.body ?? '', receivedAt: m.date ?? since, notify: false);
       if (inserted) added++;
     }
     notifyListeners();
@@ -130,8 +133,13 @@ class SmsService extends ChangeNotifier {
 
   /// Shared by foreground, background and inbox scan. Returns true if a new
   /// pending item was stored.
-  static Future<bool> ingest(Repository repo, String sender, String body,
-      {required int receivedAt, required bool notify}) async {
+  static Future<bool> ingest(
+    Repository repo,
+    String sender,
+    String body, {
+    required int receivedAt,
+    required bool notify,
+  }) async {
     final parsed = SmsParser.parse(sender, body);
     if (parsed == null) return false;
     final h = SmsParser.hash(sender, body);

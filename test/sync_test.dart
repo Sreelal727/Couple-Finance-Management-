@@ -55,13 +55,7 @@ class Phone {
   }
 
   Future<void> startServer(SyncCrypto crypto) async {
-    server = SyncServer(
-      repo: repo,
-      attachments: store,
-      self: info,
-      crypto: () => crypto,
-      onPeerSeen: (_, __) async {},
-    );
+    server = SyncServer(repo: repo, attachments: store, self: info, crypto: () => crypto, onPeerSeen: (_, _) async {});
     await server!.start();
   }
 
@@ -156,14 +150,16 @@ void main() {
     expect(balB.netPaise, -40000);
 
     // B settles 400 to A.
-    await b.repo.save(Settlement(
-      meta: b.repo.newMeta(),
-      fromMember: b.repo.identity.memberId,
-      toMember: a.repo.identity.memberId,
-      amountPaise: 40000,
-      occurredAt: DateTime.now().millisecondsSinceEpoch,
-      note: '',
-    ));
+    await b.repo.save(
+      Settlement(
+        meta: b.repo.newMeta(),
+        fromMember: b.repo.identity.memberId,
+        toMember: a.repo.identity.memberId,
+        amountPaise: 40000,
+        occurredAt: DateTime.now().millisecondsSinceEpoch,
+        note: '',
+      ),
+    );
     await client.sync('127.0.0.1', b.server!.port);
     expect((await a.repo.balance()).netPaise, 0);
     expect((await b.repo.balance()).netPaise, 0);

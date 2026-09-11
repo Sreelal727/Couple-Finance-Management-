@@ -65,13 +65,15 @@ class LanDiscovery {
       if (j['app'] != SyncProtocol.app) return;
       final id = j['d'] as String?;
       if (id == null || id == self.deviceId) return;
-      _controller.add(PeerSighting(
-        deviceId: id,
-        name: (j['n'] as String?) ?? 'Unknown',
-        address: dg.address,
-        port: (j['p'] as num?)?.toInt() ?? SyncProtocol.httpPort,
-        seenAt: DateTime.now(),
-      ));
+      _controller.add(
+        PeerSighting(
+          deviceId: id,
+          name: (j['n'] as String?) ?? 'Unknown',
+          address: dg.address,
+          port: (j['p'] as num?)?.toInt() ?? SyncProtocol.httpPort,
+          seenAt: DateTime.now(),
+        ),
+      );
     } catch (_) {
       // Not one of ours.
     }
@@ -80,13 +82,15 @@ class LanDiscovery {
   Future<void> announce() async {
     final s = _socket;
     if (s == null) return;
-    final payload = utf8.encode(jsonEncode({
-      'app': SyncProtocol.app,
-      'v': SyncProtocol.version,
-      'd': self.deviceId,
-      'n': self.name,
-      'p': httpPort,
-    }));
+    final payload = utf8.encode(
+      jsonEncode({
+        'app': SyncProtocol.app,
+        'v': SyncProtocol.version,
+        'd': self.deviceId,
+        'n': self.name,
+        'p': httpPort,
+      }),
+    );
     final targets = <InternetAddress>{InternetAddress('255.255.255.255')};
     for (final addr in await localAddresses()) {
       // Directed broadcast for a /24, which covers almost every home router and

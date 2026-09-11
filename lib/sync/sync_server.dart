@@ -60,14 +60,9 @@ class SyncServer {
   // ------------------------------------------------------------ handlers
 
   Response _hello(Request req) => Response.ok(
-        jsonEncode({
-          'app': SyncProtocol.app,
-          'v': SyncProtocol.version,
-          ...self.toJson(),
-          'port': port,
-        }),
-        headers: {'content-type': 'application/json'},
-      );
+    jsonEncode({'app': SyncProtocol.app, 'v': SyncProtocol.version, ...self.toJson(), 'port': port}),
+    headers: {'content-type': 'application/json'},
+  );
 
   Future<Response> _vector(Request req) async {
     final c = crypto();
@@ -114,19 +109,21 @@ class SyncServer {
       await repo.savePeerVector(from.deviceId, myVector);
       final peer = await repo.peerByDevice(from.deviceId);
       if (peer != null) await repo.upsertPeer(peer.copyWith(lastSyncAt: Dates.nowMs()));
-      await repo.addSyncLog(SyncLogEntry(
-        id: newId(),
-        peerName: from.name,
-        startedAt: startedAt,
-        finishedAt: Dates.nowMs(),
-        method: SyncMethod.lan,
-        outcome: SyncOutcome.ok,
-        sent: sent,
-        received: received,
-        attachmentsSent: 0,
-        attachmentsReceived: 0,
-        detail: 'They connected to us',
-      ));
+      await repo.addSyncLog(
+        SyncLogEntry(
+          id: newId(),
+          peerName: from.name,
+          startedAt: startedAt,
+          finishedAt: Dates.nowMs(),
+          method: SyncMethod.lan,
+          outcome: SyncOutcome.ok,
+          sent: sent,
+          received: received,
+          attachmentsSent: 0,
+          attachmentsReceived: 0,
+          detail: 'They connected to us',
+        ),
+      );
       return await _sealed(c, {
         't': 'exchange',
         'ts': Dates.nowMs(),
@@ -138,19 +135,21 @@ class SyncServer {
         'applied': received,
       });
     } catch (e) {
-      await repo.addSyncLog(SyncLogEntry(
-        id: newId(),
-        peerName: from?.name ?? 'Unknown',
-        startedAt: startedAt,
-        finishedAt: Dates.nowMs(),
-        method: SyncMethod.lan,
-        outcome: SyncOutcome.failed,
-        sent: 0,
-        received: 0,
-        attachmentsSent: 0,
-        attachmentsReceived: 0,
-        detail: 'Incoming sync failed: $e',
-      ));
+      await repo.addSyncLog(
+        SyncLogEntry(
+          id: newId(),
+          peerName: from?.name ?? 'Unknown',
+          startedAt: startedAt,
+          finishedAt: Dates.nowMs(),
+          method: SyncMethod.lan,
+          outcome: SyncOutcome.failed,
+          sent: 0,
+          received: 0,
+          attachmentsSent: 0,
+          attachmentsReceived: 0,
+          detail: 'Incoming sync failed: $e',
+        ),
+      );
       return Response.forbidden('bad request: $e');
     }
   }
@@ -211,9 +210,9 @@ class SyncServer {
 
   static RowBatch _rowsFrom(Object? v) {
     final m = (v as Map?) ?? const {};
-    return m.map((table, rows) => MapEntry(
-          table as String,
-          (rows as List).map((r) => Map<String, Object?>.from(r as Map)).toList(),
-        ));
+    return m.map(
+      (table, rows) =>
+          MapEntry(table as String, (rows as List).map((r) => Map<String, Object?>.from(r as Map)).toList()),
+    );
   }
 }

@@ -28,11 +28,8 @@ class DeviceInfo {
 
   Map<String, dynamic> toJson() => {'deviceId': deviceId, 'memberId': memberId, 'name': name};
 
-  static DeviceInfo fromJson(Map<String, dynamic> j) => DeviceInfo(
-        deviceId: j['deviceId'] as String,
-        memberId: j['memberId'] as String,
-        name: j['name'] as String,
-      );
+  static DeviceInfo fromJson(Map<String, dynamic> j) =>
+      DeviceInfo(deviceId: j['deviceId'] as String, memberId: j['memberId'] as String, name: j['name'] as String);
 }
 
 class SyncException implements Exception {

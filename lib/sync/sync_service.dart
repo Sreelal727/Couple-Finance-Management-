@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -125,8 +126,7 @@ class SyncService extends ChangeNotifier {
 
   Future<void> announce() async => _discovery?.announce();
 
-  Future<List<String>> myAddresses() async =>
-      (await LanDiscovery.localAddresses()).map((a) => a.address).toList();
+  Future<List<String>> myAddresses() async => (await LanDiscovery.localAddresses()).map((a) => a.address).toList();
 
   // ------------------------------------------------------------- sightings
 
@@ -134,11 +134,7 @@ class SyncService extends ChangeNotifier {
     sightings[s.deviceId] = s;
     final peer = await repo.peerByDevice(s.deviceId);
     if (peer != null) {
-      await repo.upsertPeer(peer.copyWith(
-        name: s.name,
-        lastAddress: s.hostPort,
-        lastSeenAt: Dates.nowMs(),
-      ));
+      await repo.upsertPeer(peer.copyWith(name: s.name, lastAddress: s.hostPort, lastSeenAt: Dates.nowMs()));
     }
     notifyListeners();
     if (peer == null || !isPaired || !autoSync || phase == SyncPhase.syncing) return;
@@ -154,17 +150,19 @@ class SyncService extends ChangeNotifier {
 
   Future<void> _registerPeer(DeviceInfo info, String address) async {
     final existing = await repo.peerByDevice(info.deviceId);
-    await repo.upsertPeer((existing ??
-            Peer(
-              deviceId: info.deviceId,
-              memberId: info.memberId,
-              name: info.name,
-              lastAddress: null,
-              lastSeenAt: null,
-              lastSyncAt: null,
-              pairedAt: Dates.nowMs(),
-            ))
-        .copyWith(name: info.name, lastAddress: address, lastSeenAt: Dates.nowMs()));
+    await repo.upsertPeer(
+      (existing ??
+              Peer(
+                deviceId: info.deviceId,
+                memberId: info.memberId,
+                name: info.name,
+                lastAddress: null,
+                lastSeenAt: null,
+                lastSyncAt: null,
+                pairedAt: Dates.nowMs(),
+              ))
+          .copyWith(name: info.name, lastAddress: address, lastSeenAt: Dates.nowMs()),
+    );
   }
 
   // ----------------------------------------------------------------- sync
@@ -204,15 +202,15 @@ class SyncService extends ChangeNotifier {
     Object? lastErr;
     for (final p in peers) {
       final s = sightings[p.deviceId];
-      final candidates = <String>[
-        if (s != null) s.hostPort,
-        if (p.lastAddress != null) p.lastAddress!,
-      ];
+      final candidates = <String>[if (s != null) s.hostPort, if (p.lastAddress != null) p.lastAddress!];
       for (final hp in candidates.toSet()) {
         final parts = hp.split(':');
         try {
-          return await syncWith(parts[0], int.tryParse(parts.length > 1 ? parts[1] : '') ?? SyncProtocol.httpPort,
-              expectedDeviceId: p.deviceId);
+          return await syncWith(
+            parts[0],
+            int.tryParse(parts.length > 1 ? parts[1] : '') ?? SyncProtocol.httpPort,
+            expectedDeviceId: p.deviceId,
+          );
         } catch (e) {
           lastErr = e;
         }
@@ -304,19 +302,21 @@ class SyncService extends ChangeNotifier {
     if (c == null) throw const SyncException('Pair the phones first');
     final b = SyncBundle(repo: repo, attachments: attachments, self: _self!, crypto: c);
     final bytes = await b.create(peerDeviceId: peerDeviceId);
-    await repo.addSyncLog(SyncLogEntry(
-      id: newId(),
-      peerName: peerDeviceId == null ? 'Anyone' : ((await repo.peerByDevice(peerDeviceId))?.name ?? 'Partner'),
-      startedAt: Dates.nowMs(),
-      finishedAt: Dates.nowMs(),
-      method: SyncMethod.bundleOut,
-      outcome: SyncOutcome.ok,
-      sent: 0,
-      received: 0,
-      attachmentsSent: 0,
-      attachmentsReceived: 0,
-      detail: 'Created sync file (${(bytes.length / 1024).toStringAsFixed(0)} KB)',
-    ));
+    await repo.addSyncLog(
+      SyncLogEntry(
+        id: newId(),
+        peerName: peerDeviceId == null ? 'Anyone' : ((await repo.peerByDevice(peerDeviceId))?.name ?? 'Partner'),
+        startedAt: Dates.nowMs(),
+        finishedAt: Dates.nowMs(),
+        method: SyncMethod.bundleOut,
+        outcome: SyncOutcome.ok,
+        sent: 0,
+        received: 0,
+        attachmentsSent: 0,
+        attachmentsReceived: 0,
+        detail: 'Created sync file (${(bytes.length / 1024).toStringAsFixed(0)} KB)',
+      ),
+    );
     return bytes;
   }
 

@@ -24,23 +24,17 @@ class SyncResult {
     required this.attachmentsReceived,
   });
 
-  bool get nothingChanged =>
-      sent == 0 && received == 0 && attachmentsSent == 0 && attachmentsReceived == 0;
+  bool get nothingChanged => sent == 0 && received == 0 && attachmentsSent == 0 && attachmentsReceived == 0;
 
   String get summary => nothingChanged
       ? 'Already up to date'
       : 'Sent $sent, received $received'
-          '${attachmentsSent + attachmentsReceived > 0 ? ', ${attachmentsSent + attachmentsReceived} photos' : ''}';
+            '${attachmentsSent + attachmentsReceived > 0 ? ', ${attachmentsSent + attachmentsReceived} photos' : ''}';
 }
 
 /// Drives one full sync against a peer's [SyncServer].
 class SyncClient {
-  SyncClient({
-    required this.repo,
-    required this.attachments,
-    required this.self,
-    required this.crypto,
-  });
+  SyncClient({required this.repo, required this.attachments, required this.self, required this.crypto});
 
   final Repository repo;
   final AttachmentStore attachments;
@@ -112,22 +106,24 @@ class SyncClient {
 
       await repo.savePeerVector(peer.deviceId, theirVectorAfter);
       final existing = await repo.peerByDevice(peer.deviceId);
-      await repo.upsertPeer((existing ??
-              Peer(
-                deviceId: peer.deviceId,
-                memberId: peer.memberId,
-                name: peer.name,
-                lastAddress: null,
-                lastSeenAt: null,
-                lastSyncAt: null,
-                pairedAt: Dates.nowMs(),
-              ))
-          .copyWith(
-        name: peer.name,
-        lastAddress: '$host:$port',
-        lastSeenAt: Dates.nowMs(),
-        lastSyncAt: Dates.nowMs(),
-      ));
+      await repo.upsertPeer(
+        (existing ??
+                Peer(
+                  deviceId: peer.deviceId,
+                  memberId: peer.memberId,
+                  name: peer.name,
+                  lastAddress: null,
+                  lastSeenAt: null,
+                  lastSyncAt: null,
+                  pairedAt: Dates.nowMs(),
+                ))
+            .copyWith(
+              name: peer.name,
+              lastAddress: '$host:$port',
+              lastSeenAt: Dates.nowMs(),
+              lastSyncAt: Dates.nowMs(),
+            ),
+      );
       final result = SyncResult(
         peer: peer,
         sent: sent,
@@ -135,35 +131,39 @@ class SyncClient {
         attachmentsSent: attOut,
         attachmentsReceived: attIn,
       );
-      await repo.addSyncLog(SyncLogEntry(
-        id: newId(),
-        peerName: peer.name,
-        startedAt: startedAt,
-        finishedAt: Dates.nowMs(),
-        method: SyncMethod.lan,
-        outcome: SyncOutcome.ok,
-        sent: sent,
-        received: received,
-        attachmentsSent: attOut,
-        attachmentsReceived: attIn,
-        detail: 'We connected to $host',
-      ));
+      await repo.addSyncLog(
+        SyncLogEntry(
+          id: newId(),
+          peerName: peer.name,
+          startedAt: startedAt,
+          finishedAt: Dates.nowMs(),
+          method: SyncMethod.lan,
+          outcome: SyncOutcome.ok,
+          sent: sent,
+          received: received,
+          attachmentsSent: attOut,
+          attachmentsReceived: attIn,
+          detail: 'We connected to $host',
+        ),
+      );
       if (attIn > 0) repo.bump();
       return result;
     } catch (e) {
-      await repo.addSyncLog(SyncLogEntry(
-        id: newId(),
-        peerName: peer?.name ?? host,
-        startedAt: startedAt,
-        finishedAt: Dates.nowMs(),
-        method: SyncMethod.lan,
-        outcome: SyncOutcome.failed,
-        sent: 0,
-        received: 0,
-        attachmentsSent: 0,
-        attachmentsReceived: 0,
-        detail: e.toString(),
-      ));
+      await repo.addSyncLog(
+        SyncLogEntry(
+          id: newId(),
+          peerName: peer?.name ?? host,
+          startedAt: startedAt,
+          finishedAt: Dates.nowMs(),
+          method: SyncMethod.lan,
+          outcome: SyncOutcome.failed,
+          sent: 0,
+          received: 0,
+          attachmentsSent: 0,
+          attachmentsReceived: 0,
+          detail: e.toString(),
+        ),
+      );
       rethrow;
     } finally {
       client.close(force: true);
@@ -173,12 +173,13 @@ class SyncClient {
   // ------------------------------------------------------------- helpers
 
   Future<Map<String, dynamic>> _post(
-      HttpClient client, String host, int port, String path, Map<String, dynamic> body) async {
-    final sealed = await crypto.sealJson({
-      ...body,
-      'ts': Dates.nowMs(),
-      'from': self.toJson(),
-    });
+    HttpClient client,
+    String host,
+    int port,
+    String path,
+    Map<String, dynamic> body,
+  ) async {
+    final sealed = await crypto.sealJson({...body, 'ts': Dates.nowMs(), 'from': self.toJson()});
     final res = await _postBytes(client, host, port, path, sealed);
     try {
       return await crypto.openJson(res);
@@ -221,9 +222,9 @@ class SyncClient {
 
   static RowBatch _rowsFrom(Object? v) {
     final m = (v as Map?) ?? const {};
-    return m.map((table, rows) => MapEntry(
-          table as String,
-          (rows as List).map((r) => Map<String, Object?>.from(r as Map)).toList(),
-        ));
+    return m.map(
+      (table, rows) =>
+          MapEntry(table as String, (rows as List).map((r) => Map<String, Object?>.from(r as Map)).toList()),
+    );
   }
 }

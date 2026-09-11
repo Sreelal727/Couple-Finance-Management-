@@ -13,25 +13,27 @@ class Notifications {
 
   static bool _initialised = false;
 
-  static Future<void> init({
-    void Function(NotificationResponse)? onTap,
-    void Function(NotificationResponse)? onBackgroundTap,
-  }) async {
+  /// Set by the app once its navigator exists; called on foreground taps.
+  static void Function(NotificationResponse)? onTap;
+
+  static Future<void> init({void Function(NotificationResponse)? onBackgroundTap}) async {
     if (_initialised) return;
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     await plugin.initialize(
       settings: const InitializationSettings(android: android),
-      onDidReceiveNotificationResponse: onTap,
+      onDidReceiveNotificationResponse: (r) => onTap?.call(r),
       onDidReceiveBackgroundNotificationResponse: onBackgroundTap,
     );
     await plugin
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(const AndroidNotificationChannel(
-          channelId,
-          'Detected transactions',
-          description: 'Bank SMS turned into one-tap expense entries',
-          importance: Importance.high,
-        ));
+        ?.createNotificationChannel(
+          const AndroidNotificationChannel(
+            channelId,
+            'Detected transactions',
+            description: 'Bank SMS turned into one-tap expense entries',
+            importance: Importance.high,
+          ),
+        );
     _initialised = true;
   }
 
@@ -40,11 +42,7 @@ class Notifications {
     return await android?.requestNotificationsPermission() ?? true;
   }
 
-  static Future<void> showSmsCandidate({
-    required String smsId,
-    required String title,
-    required String body,
-  }) async {
+  static Future<void> showSmsCandidate({required String smsId, required String title, required String body}) async {
     await plugin.show(
       id: smsId.hashCode & 0x7fffffff,
       title: title,

@@ -69,14 +69,16 @@ class Repository extends ChangeNotifier {
     await save(Member(meta: _newMeta(memberId), name: myName, colorHex: colorHex));
     var order = 0;
     for (final c in defaultCategories) {
-      await save(Category(
-        meta: _newMeta(c.id),
-        name: c.name,
-        icon: c.icon,
-        colorHex: c.colorHex,
-        kind: c.kind,
-        sortOrder: order++,
-      ));
+      await save(
+        Category(
+          meta: _newMeta(c.id),
+          name: c.name,
+          icon: c.icon,
+          colorHex: c.colorHex,
+          kind: c.kind,
+          sortOrder: order++,
+        ),
+      );
     }
     notifyListeners();
   }
@@ -87,8 +89,7 @@ class Repository extends ChangeNotifier {
   }
 
   Future<void> setMeta(String key, String? value) async {
-    await db.insert('meta', {'key': key, 'value': value},
-        conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert('meta', {'key': key, 'value': value}, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   // ------------------------------------------------------------ sync meta
@@ -119,10 +120,11 @@ class Repository extends ChangeNotifier {
     final r = await txn.query('meta', where: 'key = ?', whereArgs: ['seq']);
     final current = int.tryParse((r.isEmpty ? null : r.first['value'] as String?) ?? '0') ?? 0;
     final next = current + 1;
-    await txn.insert('meta', {'key': 'seq', 'value': '$next'},
-        conflictAlgorithm: ConflictAlgorithm.replace);
-    await txn.insert('seen_vector', {'origin_device': identity.deviceId, 'seq': next},
-        conflictAlgorithm: ConflictAlgorithm.replace);
+    await txn.insert('meta', {'key': 'seq', 'value': '$next'}, conflictAlgorithm: ConflictAlgorithm.replace);
+    await txn.insert('seen_vector', {
+      'origin_device': identity.deviceId,
+      'seq': next,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
     return next;
   }
 
@@ -136,12 +138,7 @@ class Repository extends ChangeNotifier {
   Future<void> _write(String table, Map<String, Object?> map) async {
     await db.transaction((txn) async {
       final seq = await _nextSeq(txn);
-      final row = {
-        ...map,
-        'origin_device': identity.deviceId,
-        'seq': seq,
-        'updated_at': _monotonicNow(),
-      };
+      final row = {...map, 'origin_device': identity.deviceId, 'seq': seq, 'updated_at': _monotonicNow()};
       await txn.insert(table, row, conflictAlgorithm: ConflictAlgorithm.replace);
     });
   }
@@ -151,8 +148,7 @@ class Repository extends ChangeNotifier {
     if (rows.isEmpty) return;
     await _write(table, {...rows.first, 'deleted': 1});
     if (table == 'transactions') {
-      final atts = await db.query('attachments',
-          where: 'txn_id = ? AND deleted = 0', whereArgs: [id]);
+      final atts = await db.query('attachments', where: 'txn_id = ? AND deleted = 0', whereArgs: [id]);
       for (final a in atts) {
         await _write('attachments', {...a, 'deleted': 1});
       }
@@ -203,22 +199,27 @@ class Repository extends ChangeNotifier {
   /// The category most often used for [merchant] in the past, if any.
   Future<String?> suggestCategoryForMerchant(String? merchant) async {
     if (merchant == null || merchant.trim().isEmpty) return null;
-    final rows = await db.rawQuery('''
+    final rows = await db.rawQuery(
+      '''
       SELECT category_id, COUNT(*) AS n FROM transactions
       WHERE deleted = 0 AND category_id IS NOT NULL AND LOWER(merchant) = LOWER(?)
-      GROUP BY category_id ORDER BY n DESC LIMIT 1''', [merchant.trim()]);
+      GROUP BY category_id ORDER BY n DESC LIMIT 1''',
+      [merchant.trim()],
+    );
     return rows.isEmpty ? null : rows.first['category_id'] as String?;
   }
 
   /// Most recently used title for [merchant], so one-tap add can prefill.
   Future<String?> lastTitleForMerchant(String? merchant) async {
     if (merchant == null || merchant.trim().isEmpty) return null;
-    final rows = await db.query('transactions',
-        columns: ['title'],
-        where: "deleted = 0 AND title != '' AND LOWER(merchant) = LOWER(?)",
-        whereArgs: [merchant.trim()],
-        orderBy: 'occurred_at DESC',
-        limit: 1);
+    final rows = await db.query(
+      'transactions',
+      columns: ['title'],
+      where: "deleted = 0 AND title != '' AND LOWER(merchant) = LOWER(?)",
+      whereArgs: [merchant.trim()],
+      orderBy: 'occurred_at DESC',
+      limit: 1,
+    );
     return rows.isEmpty ? null : rows.first['title'] as String?;
   }
 
@@ -234,23 +235,27 @@ class Repository extends ChangeNotifier {
     return rows.map(Txn.fromMap).toList();
   }
 
-  Future<List<Txn>> txnsForMonth(DateTime month) =>
-      txnsInRange(Dates.monthStart(month), Dates.nextMonthStart(month));
+  Future<List<Txn>> txnsForMonth(DateTime month) => txnsInRange(Dates.monthStart(month), Dates.nextMonthStart(month));
 
   Future<List<Txn>> recentTxns({int limit = 8}) async {
-    final rows = await db.query('transactions',
-        where: 'deleted = 0', orderBy: 'occurred_at DESC, created_at DESC', limit: limit);
+    final rows = await db.query(
+      'transactions',
+      where: 'deleted = 0',
+      orderBy: 'occurred_at DESC, created_at DESC',
+      limit: limit,
+    );
     return rows.map(Txn.fromMap).toList();
   }
 
   Future<List<Txn>> searchTxns(String query, {int limit = 200}) async {
     final q = '%${query.toLowerCase()}%';
-    final rows = await db.query('transactions',
-        where:
-            'deleted = 0 AND (LOWER(title) LIKE ? OR LOWER(note) LIKE ? OR LOWER(merchant) LIKE ?)',
-        whereArgs: [q, q, q],
-        orderBy: 'occurred_at DESC',
-        limit: limit);
+    final rows = await db.query(
+      'transactions',
+      where: 'deleted = 0 AND (LOWER(title) LIKE ? OR LOWER(note) LIKE ? OR LOWER(merchant) LIKE ?)',
+      whereArgs: [q, q, q],
+      orderBy: 'occurred_at DESC',
+      limit: limit,
+    );
     return rows.map(Txn.fromMap).toList();
   }
 
@@ -260,17 +265,25 @@ class Repository extends ChangeNotifier {
   }
 
   Future<bool> txnExistsForSms(String smsRef) async {
-    final rows = await db.query('transactions',
-        columns: ['id'], where: 'sms_ref = ? AND deleted = 0', whereArgs: [smsRef], limit: 1);
+    final rows = await db.query(
+      'transactions',
+      columns: ['id'],
+      where: 'sms_ref = ? AND deleted = 0',
+      whereArgs: [smsRef],
+      limit: 1,
+    );
     return rows.isNotEmpty;
   }
 
   /// Distinct titles used before, for autocomplete.
   Future<List<String>> recentTitles({int limit = 30}) async {
-    final rows = await db.rawQuery('''
+    final rows = await db.rawQuery(
+      '''
       SELECT title, MAX(occurred_at) AS t FROM transactions
       WHERE deleted = 0 AND title != '' GROUP BY LOWER(title)
-      ORDER BY t DESC LIMIT ?''', [limit]);
+      ORDER BY t DESC LIMIT ?''',
+      [limit],
+    );
     return rows.map((r) => r['title'] as String).toList();
   }
 
@@ -318,11 +331,11 @@ class Repository extends ChangeNotifier {
   }
 
   Future<Budget?> budgetFor(String? categoryId) async {
-    final rows = await db.query('budgets',
-        where: categoryId == null
-            ? 'deleted = 0 AND category_id IS NULL'
-            : 'deleted = 0 AND category_id = ?',
-        whereArgs: categoryId == null ? null : [categoryId]);
+    final rows = await db.query(
+      'budgets',
+      where: categoryId == null ? 'deleted = 0 AND category_id IS NULL' : 'deleted = 0 AND category_id = ?',
+      whereArgs: categoryId == null ? null : [categoryId],
+    );
     return rows.isEmpty ? null : Budget.fromMap(rows.first);
   }
 
@@ -339,8 +352,12 @@ class Repository extends ChangeNotifier {
   }
 
   Future<List<GoalContribution>> contributions(String goalId) async {
-    final rows = await db.query('goal_contributions',
-        where: 'deleted = 0 AND goal_id = ?', whereArgs: [goalId], orderBy: 'occurred_at DESC');
+    final rows = await db.query(
+      'goal_contributions',
+      where: 'deleted = 0 AND goal_id = ?',
+      whereArgs: [goalId],
+      orderBy: 'occurred_at DESC',
+    );
     return rows.map(GoalContribution.fromMap).toList();
   }
 
@@ -359,8 +376,7 @@ class Repository extends ChangeNotifier {
       WHERE deleted = 0 GROUP BY goal_id, member_id''');
     final out = <String, Map<String, int>>{};
     for (final r in rows) {
-      out.putIfAbsent(r['goal_id'] as String, () => {})[r['member_id'] as String] =
-          (r['total'] as num? ?? 0).toInt();
+      out.putIfAbsent(r['goal_id'] as String, () => {})[r['member_id'] as String] = (r['total'] as num? ?? 0).toInt();
     }
     return out;
   }
@@ -375,8 +391,12 @@ class Repository extends ChangeNotifier {
   // -------------------------------------------------------- attachments
 
   Future<List<Attachment>> attachmentsFor(String txnId) async {
-    final rows = await db.query('attachments',
-        where: 'deleted = 0 AND txn_id = ?', whereArgs: [txnId], orderBy: 'created_at');
+    final rows = await db.query(
+      'attachments',
+      where: 'deleted = 0 AND txn_id = ?',
+      whereArgs: [txnId],
+      orderBy: 'created_at',
+    );
     return rows.map(Attachment.fromMap).toList();
   }
 
@@ -399,11 +419,13 @@ class Repository extends ChangeNotifier {
   }
 
   Future<List<SmsItem>> smsItems({SmsStatus? status, int limit = 200}) async {
-    final rows = await db.query('sms_inbox',
-        where: status == null ? null : 'status = ?',
-        whereArgs: status == null ? null : [status.name],
-        orderBy: 'received_at DESC',
-        limit: limit);
+    final rows = await db.query(
+      'sms_inbox',
+      where: status == null ? null : 'status = ?',
+      whereArgs: status == null ? null : [status.name],
+      orderBy: 'received_at DESC',
+      limit: limit,
+    );
     return rows.map(SmsItem.fromMap).toList();
   }
 
@@ -466,8 +488,13 @@ class Repository extends ChangeNotifier {
   }
 
   Future<SyncLogEntry?> lastSuccessfulSync() async {
-    final rows = await db.query('sync_log',
-        where: 'outcome = ?', whereArgs: ['ok'], orderBy: 'started_at DESC', limit: 1);
+    final rows = await db.query(
+      'sync_log',
+      where: 'outcome = ?',
+      whereArgs: ['ok'],
+      orderBy: 'started_at DESC',
+      limit: 1,
+    );
     return rows.isEmpty ? null : SyncLogEntry.fromMap(rows.first);
   }
 
@@ -482,8 +509,7 @@ class Repository extends ChangeNotifier {
     }
     // Belt and braces: also derive from the rows themselves.
     for (final table in syncedTables) {
-      final rows = await db.rawQuery(
-          'SELECT origin_device, MAX(seq) AS s FROM $table GROUP BY origin_device');
+      final rows = await db.rawQuery('SELECT origin_device, MAX(seq) AS s FROM $table GROUP BY origin_device');
       for (final r in rows) {
         final d = r['origin_device'] as String;
         final s = (r['s'] as num).toInt();
@@ -508,8 +534,7 @@ class Repository extends ChangeNotifier {
         args.add(o);
         args.add(known[o] ?? 0);
       }
-      final rows = await db.query(table,
-          where: clauses.join(' OR '), whereArgs: args, orderBy: 'seq');
+      final rows = await db.query(table, where: clauses.join(' OR '), whereArgs: args, orderBy: 'seq');
       if (rows.isNotEmpty) out[table] = rows.map((r) => Map<String, Object?>.from(r)).toList();
     }
     return out;
@@ -538,16 +563,16 @@ class Repository extends ChangeNotifier {
             take = ii > li || (ii == li && origin.compareTo(lo) > 0);
           }
           if (take) {
-            await txn.insert(table, _sanitize(table, incoming),
-                conflictAlgorithm: ConflictAlgorithm.replace);
+            await txn.insert(table, _sanitize(table, incoming), conflictAlgorithm: ConflictAlgorithm.replace);
             applied++;
           }
-          final seen = await txn.query('seen_vector',
-              where: 'origin_device = ?', whereArgs: [origin]);
+          final seen = await txn.query('seen_vector', where: 'origin_device = ?', whereArgs: [origin]);
           final cur = seen.isEmpty ? 0 : (seen.first['seq'] as num).toInt();
           if (seq > cur) {
-            await txn.insert('seen_vector', {'origin_device': origin, 'seq': seq},
-                conflictAlgorithm: ConflictAlgorithm.replace);
+            await txn.insert('seen_vector', {
+              'origin_device': origin,
+              'seq': seq,
+            }, conflictAlgorithm: ConflictAlgorithm.replace);
           }
         }
       }
@@ -563,7 +588,10 @@ class Repository extends ChangeNotifier {
   Map<String, Object?> _sanitize(String table, Map<String, Object?> row) {
     final cols = _columns[table];
     if (cols == null) return row; // filled lazily below
-    return {for (final e in row.entries) if (cols.contains(e.key)) e.key: e.value};
+    return {
+      for (final e in row.entries)
+        if (cols.contains(e.key)) e.key: e.value,
+    };
   }
 
   Future<void> loadColumnInfo() async {
@@ -595,8 +623,7 @@ class Repository extends ChangeNotifier {
     return decoded.map((k, v) => MapEntry(k, (v as num).toInt()));
   }
 
-  Future<void> savePeerVector(String deviceId, Map<String, int> v) =>
-      setMeta('peer_vector_$deviceId', jsonEncode(v));
+  Future<void> savePeerVector(String deviceId, Map<String, int> v) => setMeta('peer_vector_$deviceId', jsonEncode(v));
 
   /// Called by services that changed state outside of [save].
   void bump() => notifyListeners();
