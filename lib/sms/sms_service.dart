@@ -72,7 +72,7 @@ class SmsService extends ChangeNotifier {
 
   Future<bool> hasPermission() async {
     try {
-      return await _telephony.requestPhoneAndSmsPermissions ?? false;
+      return await _telephony.requestSmsPermissions ?? false;
     } catch (_) {
       return false;
     }
