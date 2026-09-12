@@ -29,8 +29,9 @@ subprojects {
             compileOptions.targetCompatibility = JavaVersion.VERSION_17
         }
     }
-    // :app is already evaluated here because of evaluationDependsOn above.
-    if (state.executed) alignJavaTarget() else afterEvaluate { alignJavaTarget() }
+    // :app is already evaluated (and its DSL finalized) here because of
+    // evaluationDependsOn above; it sets Java 17 itself.
+    if (!state.executed) afterEvaluate { alignJavaTarget() }
 }
 gradle.projectsEvaluated {
     subprojects {
