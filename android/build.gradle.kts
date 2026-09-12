@@ -25,10 +25,8 @@ subprojects {
 subprojects {
     afterEvaluate {
         extensions.findByType(com.android.build.api.dsl.CommonExtension::class.java)?.apply {
-            compileOptions {
-                sourceCompatibility = JavaVersion.VERSION_17
-                targetCompatibility = JavaVersion.VERSION_17
-            }
+            compileOptions.sourceCompatibility = JavaVersion.VERSION_17
+            compileOptions.targetCompatibility = JavaVersion.VERSION_17
         }
         tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class.java).configureEach {
             compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
