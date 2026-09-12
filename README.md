@@ -89,7 +89,7 @@ keytool -genkey -v -keystore release.jks -keyalg RSA -keysize 2048 -validity 100
 
 ### Locally
 
-Requirements: Flutter 3.47+ (Dart 3.13+), Android SDK with platform 36, JDK 17.
+Requirements: Flutter 3.47+ (Dart 3.13+), Android SDK with platform 37, JDK 17.
 
 ```bash
 flutter pub get

@@ -22,7 +22,9 @@ val hasReleaseKeystore = keystorePropertiesFile.exists()
 
 android {
     namespace = "com.sreelal.duo_finance"
-    compileSdk = flutter.compileSdkVersion
+    // permission_handler_android and receive_sharing_intent require compiling
+    // against API 37; Flutter's default (flutter.compileSdkVersion) is 36.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
