@@ -66,6 +66,29 @@ test/
 
 ## Building
 
+### On GitHub (no local setup)
+
+Every push runs the **Build APK** workflow (`.github/workflows/build-apk.yml`): it analyzes, tests and builds a release APK, and attaches it to the run as an artifact.
+
+To get an APK you can download straight onto a phone, run the workflow by hand: **Actions › Build APK › Run workflow**. That also publishes a GitHub **Release** (tagged `build-N`) with the `.apk` attached. Pushing a tag like `v1.0.0` does the same, as a full release.
+
+By default the release APK is signed with the runner's throw-away debug key, so a newer build will not install over an older one; uninstall first. To make updates install in place, sign every build with the same key by adding these repository secrets (Settings › Secrets and variables › Actions):
+
+| Secret | Value |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | `base64 -w0 release.jks` |
+| `ANDROID_KEYSTORE_PASSWORD` | keystore password |
+| `ANDROID_KEY_ALIAS` | key alias |
+| `ANDROID_KEY_PASSWORD` | key password |
+
+Create the keystore once and keep it somewhere safe:
+
+```bash
+keytool -genkey -v -keystore release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias duo
+```
+
+### Locally
+
 Requirements: Flutter 3.47+ (Dart 3.13+), Android SDK with platform 36, JDK 17.
 
 ```bash
@@ -75,9 +98,9 @@ flutter test
 flutter build apk --release
 ```
 
-The APK lands in `build/app/outputs/flutter-apk/app-release.apk`. Install it on **both** phones (both builds must come from the same machine so the signing key matches for later updates).
+The APK lands in `build/app/outputs/flutter-apk/app-release.apk`. Install it on **both** phones.
 
-Release builds are signed with the debug key on purpose: this is a personal app that is sideloaded, not published. If you ever want a proper key, add a `signingConfigs` block in `android/app/build.gradle.kts`.
+Local builds are signed with the debug key unless `android/key.properties` exists (see the comment at the top of `android/app/build.gradle.kts`). Both phones must be installed from builds signed with the same key for in-place updates to work.
 
 ## First run
 

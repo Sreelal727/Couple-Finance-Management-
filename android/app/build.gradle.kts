@@ -4,6 +4,20 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Optional release signing. Create android/key.properties (git-ignored) with
+//   storeFile=release.jks   (relative to android/app)
+//   storePassword=...
+//   keyAlias=...
+//   keyPassword=...
+// and the release build is signed with that key. Without it, the debug key is used.
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = java.util.Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        keystorePropertiesFile.inputStream().use { load(it) }
+    }
+}
+val hasReleaseKeystore = keystorePropertiesFile.exists()
+
 android {
     namespace = "com.sreelal.duo_finance"
     compileSdk = flutter.compileSdkVersion
@@ -31,13 +45,26 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // Personal app: signed with the debug key so `flutter build apk --release`
-            // produces an installable APK without extra setup. Both phones must be
-            // installed from builds made on the same machine (same debug key) for
-            // in-place updates to work.
-            signingConfig = signingConfigs.getByName("debug")
+            // Personal app that is sideloaded, not published. With android/key.properties
+            // present the release key is used; otherwise the debug key, so
+            // `flutter build apk --release` works without any setup. In-place updates
+            // only install when the new APK is signed with the same key as the old one.
+            signingConfig =
+                if (hasReleaseKeystore) signingConfigs.getByName("release")
+                else signingConfigs.getByName("debug")
         }
     }
 }

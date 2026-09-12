@@ -1,0 +1,116 @@
+# Builds the Android APK on GitHub's runners.
+#
+# - Every push: analyze, test, build, and upload the APK as a workflow artifact.
+# - Manual run (Actions › Build APK › Run workflow) or a `v*` tag: additionally
+#   publish a GitHub Release with the APK attached, so it can be downloaded
+#   straight onto a phone.
+#
+# Signing: if the repository secrets ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
+# ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD are set, the release APK is signed with
+# that key (so later builds install as in-place updates). Otherwise it is signed with
+# the runner's throw-away debug key, and the previous install must be removed first.
+name: Build APK
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.47.3"
+
+jobs:
+  build:
+    name: Build release APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Flutter doctor
+        run: flutter doctor -v
+
+      - name: Get packages
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+      - name: Configure release signing (if secrets are set)
+        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.jks
+          cat > android/key.properties <<PROPS
+          storeFile=release.jks
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          PROPS
+          echo "Release APK will be signed with the repository keystore."
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Name the APK
+        id: apk
+        run: |
+          VERSION=$(sed -n 's/^version: *//p' pubspec.yaml | tr -d '[:space:]')
+          NAME="duo-finance-${VERSION%%+*}-build${{ github.run_number }}.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "build/$NAME"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION%%+*}" >> "$GITHUB_OUTPUT"
+          ls -l "build/$NAME"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.apk.outputs.name }}
+          path: build/${{ steps.apk.outputs.name }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish GitHub Release
+        if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('build-{0}', github.run_number) }}
+          name: Duo Finance ${{ steps.apk.outputs.version }} (build ${{ github.run_number }})
+          target_commitish: ${{ github.sha }}
+          prerelease: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+          body: |
+            Release APK built from `${{ github.ref_name }}` @ ${{ github.sha }}.
+
+            Download the `.apk` below on each phone and open it to install.
+            If Android says "App not installed", uninstall the previous version first
+            (the signing key changed).
+          files: build/${{ steps.apk.outputs.name }}
